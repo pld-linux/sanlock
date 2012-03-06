@@ -15,6 +15,13 @@ BuildRequires:	libaio-devel
 BuildRequires:	libblkid-devel
 BuildRequires:	libuuid-devel
 BuildRequires:	python-devel
+BuildRequires:	rpmbuild(macros) >= 1.202
+Requires(postun):	/usr/sbin/groupdel
+Requires(postun):	/usr/sbin/userdel
+Requires(pre):	/bin/id
+Requires(pre):	/usr/bin/getgid
+Requires(pre):	/usr/sbin/groupadd
+Requires(pre):	/usr/sbin/useradd
 Requires:	%{name}-libs = %{version}-%{release}
 BuildRoot:	%{tmpdir}/%{name}-%{version}-root-%(id -u -n)
 
@@ -101,12 +108,22 @@ install init.d/wdmd $RPM_BUILD_ROOT/etc/rc.d/init.d
 
 install -d $RPM_BUILD_ROOT/usr/lib/tmpfiles.d
 cat >$RPM_BUILD_ROOT/usr/lib/tmpfiles.d/sanlock.conf <<EOF
-d /var/run/sanlock 0755 root root -
+d /var/run/sanlock 0775 sanlock sanlock -
 d /var/run/wdmd 0755 root root -
 EOF
 
 %clean
 rm -rf $RPM_BUILD_ROOT
+
+%pre
+%groupadd -g 279 sanlock
+%useradd -u 279 -g 279 -d /usr/share/empty -s /bin/false -c 'SANlock user' sanlock
+
+%postun
+if [ "$1" = "0" ]; then
+	%userremove sanlock
+	%groupremove sanlock
+fi
 
 %post	libs -p /sbin/ldconfig
 %postun	libs -p /sbin/ldconfig
@@ -119,7 +136,7 @@ rm -rf $RPM_BUILD_ROOT
 %attr(754,root,root) /etc/rc.d/init.d/sanlock
 %attr(754,root,root) /etc/rc.d/init.d/wdmd
 /usr/lib/tmpfiles.d/sanlock.conf
-%dir /var/run/sanlock
+%attr(775,sanlock,sanlock) %dir /var/run/sanlock
 %dir /var/run/wdmd
 %{_mandir}/man8/sanlock.8*
 %{_mandir}/man8/wdmd.8*
