@@ -2,12 +2,13 @@
 Summary:	Shared storage lock manager
 Summary(pl.UTF-8):	Zarządca blokad dla współdzielonego składowania danych
 Name:		sanlock
-Version:	1.8
+Version:	2.0
 Release:	0.1
 License:	LGPL v2+ (libsanlock_client, libwdmd), GPL v2 (libsanlock, utilities)
 Group:		Networking
 Source0:	https://fedorahosted.org/releases/s/a/sanlock/%{name}-%{version}.tar.gz
-# Source0-md5:	8d79874226981c43b658bd1e893aa87e
+# Source0-md5:	46fcb4be2aea8e5515d1f8ee86c68e13
+Patch0:		%{name}-link.patch
 URL:		https://fedorahosted.org/sanlock/
 BuildRequires:	gcc >= 5:3.4
 BuildRequires:	libaio-devel
@@ -60,6 +61,7 @@ Wiązanie Pythona do biblioteki sanlock.
 
 %prep
 %setup -q
+%patch0 -p1
 
 %build
 export CFLAGS="%{rpmcflags}"
@@ -97,6 +99,12 @@ install -d $RPM_BUILD_ROOT{/etc/rc.d/init.d,/var/run/{sanlock,wdmd}}
 install init.d/sanlock $RPM_BUILD_ROOT/etc/rc.d/init.d
 install init.d/wdmd $RPM_BUILD_ROOT/etc/rc.d/init.d
 
+install -d $RPM_BUILD_ROOT/usr/lib/tmpfiles.d
+cat >$RPM_BUILD_ROOT/usr/lib/tmpfiles.d/sanlock.conf <<EOF
+d /var/run/sanlock 0755 root root -
+d /var/run/wdmd 0755 root root -
+EOF
+
 %clean
 rm -rf $RPM_BUILD_ROOT
 
@@ -110,6 +118,7 @@ rm -rf $RPM_BUILD_ROOT
 %attr(755,root,root) %{_sbindir}/wdmd
 %attr(754,root,root) /etc/rc.d/init.d/sanlock
 %attr(754,root,root) /etc/rc.d/init.d/wdmd
+/usr/lib/tmpfiles.d/sanlock.conf
 %dir /var/run/sanlock
 %dir /var/run/wdmd
 %{_mandir}/man8/sanlock.8*
