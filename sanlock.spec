@@ -1,21 +1,23 @@
-# TODO: fix & PLDify init scripts (currently bash scripts with /bin/sh shebang)
+# TODO: systemd support (there are init.d/*.service, but they refer to unknown /lib/systemd/systemd-sanlock)
 Summary:	Shared storage lock manager
 Summary(pl.UTF-8):	Zarządca blokad dla współdzielonego składowania danych
 Name:		sanlock
 Version:	2.0
-Release:	0.1
+Release:	1
 License:	LGPL v2+ (libsanlock_client, libwdmd), GPL v2 (libsanlock, utilities)
 Group:		Networking
 Source0:	https://fedorahosted.org/releases/s/a/sanlock/%{name}-%{version}.tar.gz
 # Source0-md5:	46fcb4be2aea8e5515d1f8ee86c68e13
 Patch0:		%{name}-link.patch
+Patch1:		%{name}-init-pld.patch
 URL:		https://fedorahosted.org/sanlock/
 BuildRequires:	gcc >= 5:3.4
 BuildRequires:	libaio-devel
 BuildRequires:	libblkid-devel
 BuildRequires:	libuuid-devel
 BuildRequires:	python-devel
-BuildRequires:	rpmbuild(macros) >= 1.202
+BuildRequires:	rpmbuild(macros) >= 1.228
+Requires(post,preun):	/sbin/chkconfig
 Requires(postun):	/usr/sbin/groupdel
 Requires(postun):	/usr/sbin/userdel
 Requires(pre):	/bin/id
@@ -23,6 +25,8 @@ Requires(pre):	/usr/bin/getgid
 Requires(pre):	/usr/sbin/groupadd
 Requires(pre):	/usr/sbin/useradd
 Requires:	%{name}-libs = %{version}-%{release}
+Provides:	group(sanlock)
+Provides:	user(sanlock)
 BuildRoot:	%{tmpdir}/%{name}-%{version}-root-%(id -u -n)
 
 %description
@@ -69,6 +73,7 @@ Wiązanie Pythona do biblioteki sanlock.
 %prep
 %setup -q
 %patch0 -p1
+%patch1 -p1
 
 %build
 export CFLAGS="%{rpmcflags}"
@@ -118,6 +123,20 @@ rm -rf $RPM_BUILD_ROOT
 %pre
 %groupadd -g 279 sanlock
 %useradd -u 279 -g 279 -d /usr/share/empty -s /bin/false -c 'SANlock user' sanlock
+
+%post
+/sbin/chkconfig --add sanlock
+/sbin/chkconfig --add wdmd
+%service sanlock restart
+%service wdmd restart
+
+%preun
+if [ "$1" = "0" ]; then
+	%service -q sanlock stop
+	%service -q wdmd stop
+	/sbin/chkconfig --del sanlock
+	/sbin/chkconfig --del wdmd
+fi
 
 %postun
 if [ "$1" = "0" ]; then

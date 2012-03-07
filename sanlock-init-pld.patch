@@ -1,0 +1,244 @@
+--- sanlock-2.0/init.d/sanlock.orig	2012-03-02 22:13:24.000000000 +0100
++++ sanlock-2.0/init.d/sanlock	2012-03-07 18:27:31.785530424 +0100
+@@ -31,27 +31,24 @@
+ [ -f /etc/sysconfig/$prog ] && . /etc/sysconfig/$prog
+ 
+ start() {
+-	[ -x $exec ] || exit 5
+-
+-	if [ ! -d /var/run/$prog ]; then
+-		install -d -o $SANLOCKUSER -g $SANLOCKUSER -m 775 /var/run/$prog
+-		[ -x /sbin/restorecon ] && restorecon /var/run/$prog
++	# Check if the service is already running?
++	if [ -f /var/lock/subsys/sanlock ]; then
++		msg_already_running "sanlock"
++		return
+ 	fi
+-
+-	echo -n $"Starting $prog: "
++	msg_starting "sanlock"
+ 	daemon --user=$SANLOCKUSER $prog daemon $SANLOCKOPTS
+-	retval=$?
+-	echo
+-	[ $retval -eq 0 ]
+-	return $retval
++	RETVAL=$?
++	[ $RETVAL -eq 0 ] && touch /var/lock/subsys/sanlock
+ }
+ 
+ stop() {
+-	echo -n $"Stopping $prog: "
+-	killproc -p $lockfile $prog -TERM
+-	retval=$?
+-	echo
+-	[ $retval -eq 0 ]
++	if [ ! -f /var/lock/subsys/sanlock ]; then
++		msg_not_running "sanlock"
++		return
++	fi
++	killproc --pidfile $lockfile $prog
++	rm -f /var/lock/subsys/sanlock
+ }
+ 
+ wait_for_stop() {
+@@ -60,53 +57,45 @@
+ 	done
+ }
+ 
+-restart() {
++condrestart() {
++	if [ ! -f /var/lock/subsys/sanlock ]; then
++		msg_not_running "sanlock"
++		RETVAL=$1
++		return
++	fi
+ 	stop
+ 	wait_for_stop
+ 	start
+ }
+ 
+-reload() {
+-	restart
+-}
+-
+-rh_status() {
+-	status $prog
+-}
+-
+-rh_status_q() {
+-	rh_status >/dev/null 2>&1
++restart() {
++	stop
++	wait_for_stop
++	start
+ }
+ 
+ case "$1" in
+ 	start)
+-		rh_status_q && exit 0
+-		$1
++		start
+ 		;;
+ 	stop)
+-		rh_status_q || exit 0
+-		$1
++		stop
+ 		;;
+ 	restart)
+-		$1
++		restart
+ 		;;
+-	reload)
+-		rh_status_q || exit 7
+-		$1
++	try-restart)
++		condrestart 0
+ 		;;
+ 	force-reload)
+-		force_reload
++		condrestart 7
+ 		;;
+ 	status)
+-		rh_status
+-		;;
+-	condrestart|try-restart)
+-		rh_status_q || exit 0
+-		restart
++		status --pidfile $pidfile sanlock
++		RETVAL=$?
+ 		;;
+ 	*)
+-		echo $"Usage $0 {start|stop|status|restart|condrestart|try-restart|reload|force-reload}"
+-		exit 2
++		msg_usage "$0 {start|stop|restart|try-restart|force-reload|status}"
++		exit 3
+ esac
+-exit $?
+-
++exit $RETVAL
+--- sanlock-2.0/init.d/wdmd.orig	2012-03-02 22:13:24.000000000 +0100
++++ sanlock-2.0/init.d/wdmd	2012-03-07 18:26:30.102195201 +0100
+@@ -3,7 +3,7 @@
+ # wdmd - watchdog multiplexing daemon
+ #
+ # chkconfig: 2345 97 03
+-# description: starts and stops sanlock daemon
++# description: starts and stops wdmd daemon
+ #
+ 
+ 
+@@ -22,7 +22,7 @@
+ . /etc/rc.d/init.d/functions
+ 
+ prog="wdmd"
+-lockfile="/var/run/$prog/$prog.pid"
++pidfile="/var/run/$prog/$prog.pid"
+ exec="/usr/sbin/$prog"
+ 
+ WDMDGROUP="sanlock"
+@@ -31,75 +31,58 @@
+ [ -f /etc/sysconfig/$prog ] && . /etc/sysconfig/$prog
+ 
+ start() {
+-	[ -x $exec ] || exit 5
+-
+-	if [ ! -d /var/run/$prog ]; then
+-		mkdir -p /var/run/$prog
+-		[ -x /sbin/restorecon ] && restorecon /var/run/$prog
++	# Check if the service is already running?
++	if [ -f /var/lock/subsys/wdmd ]; then
++		msg_already_running "wdmd"
++		return
+ 	fi
+-
+-	echo -n $"Starting $prog: "
++	msg_starting "wdmd"
+ 	daemon $prog $WDMDOPTS
+-	retval=$?
+-	echo
+-	[ $retval -eq 0 ] && touch $lockfile
+-	return $retval
++	RETVAL=$?
++	[ $RETVAL -eq 0 ] && touch /var/lock/subsys/wdmd
+ }
+ 
+ stop() {
+-	echo -n $"Stopping $prog: "
+-	killproc -p $lockfile $prog -TERM
+-	retval=$?
+-	echo
+-	[ $retval -eq 0 ] && rm -f $lockfile
++	if [ ! -f /var/lock/subsys/wdmd ]; then
++		msg_not_running "wdmd"
++		return
++	fi
++	killproc --pidfile $pidfile $prog
++	rm -f /var/lock/subsys/wdmd
+ }
+ 
+-restart() {
++condrestart() {
++	if [ ! -f /var/lock/subsys/wdmd ]; then
++		msg_not_running "wdmd"
++		RETVAL=$1
++		return
++	fi
+ 	stop
+ 	start
+ }
+ 
+-reload() {
+-	restart
+-}
+-
+-rh_status() {
+-	status $prog
+-}
+-
+-rh_status_q() {
+-	rh_status >/dev/null 2>&1
+-}
+-
+ case "$1" in
+ 	start)
+-		rh_status_q && exit 0
+-		$1
++		start
+ 		;;
+ 	stop)
+-		rh_status_q || exit 0
+-		$1
++		stop
+ 		;;
+ 	restart)
+-		$1
++		stop
++		start
+ 		;;
+-	reload)
+-		rh_status_q || exit 7
+-		$1
++	try-restart)
++		condrestart 0
+ 		;;
+ 	force-reload)
+-		force_reload
++		condrestart 7
+ 		;;
+ 	status)
+-		rh_status
+-		;;
+-	condrestart|try-restart)
+-		rh_status_q || exit 0
+-		restart
++		status --pidfile $pidfile wdmd
+ 		;;
+ 	*)
+-		echo $"Usage $0 {start|stop|status|restart|condrestart|try-restart|reload|force-reload}"
+-		exit 2
++		msg_usage "$0 {start|stop|restart|try-restart|force-reload|status}"
++		exit 3
+ esac
+-exit $?
+-
++exit $RETVAL
