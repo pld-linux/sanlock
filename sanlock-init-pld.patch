@@ -1,13 +1,13 @@
---- sanlock-2.0/init.d/sanlock.orig	2012-03-02 22:13:24.000000000 +0100
-+++ sanlock-2.0/init.d/sanlock	2012-03-07 18:27:31.785530424 +0100
-@@ -31,27 +31,24 @@
+--- sanlock-2.3/init.d/sanlock.orig	2012-05-30 16:05:18.000000000 +0200
++++ sanlock-2.3/init.d/sanlock	2012-06-03 10:45:15.044632280 +0200
+@@ -31,93 +31,76 @@
  [ -f /etc/sysconfig/$prog ] && . /etc/sysconfig/$prog
  
  start() {
 -	[ -x $exec ] || exit 5
 -
 -	if [ ! -d /var/run/$prog ]; then
--		install -d -o $SANLOCKUSER -g $SANLOCKUSER -m 775 /var/run/$prog
+-		install -d -m 775 /var/run/$prog
 -		[ -x /sbin/restorecon ] && restorecon /var/run/$prog
 +	# Check if the service is already running?
 +	if [ -f /var/lock/subsys/sanlock ]; then
@@ -16,33 +16,51 @@
  	fi
 -
 -	echo -n $"Starting $prog: "
-+	msg_starting "sanlock"
- 	daemon --user=$SANLOCKUSER $prog daemon $SANLOCKOPTS
+-	daemon $prog daemon $SANLOCKOPTS
 -	retval=$?
 -	echo
--	[ $retval -eq 0 ]
+-
 -	return $retval
++	msg_starting "sanlock"
++	daemon --user=$SANLOCKUSER $prog daemon $SANLOCKOPTS
 +	RETVAL=$?
 +	[ $RETVAL -eq 0 ] && touch /var/lock/subsys/sanlock
++	return $RETVAL
  }
  
  stop() {
--	echo -n $"Stopping $prog: "
+-	echo -n $"Sending stop signal $prog: "
 -	killproc -p $lockfile $prog -TERM
 -	retval=$?
 -	echo
--	[ $retval -eq 0 ]
+-
+-	if [ $retval -ne 0 ]; then
+-		return $retval
 +	if [ ! -f /var/lock/subsys/sanlock ]; then
 +		msg_not_running "sanlock"
 +		return
-+	fi
-+	killproc --pidfile $lockfile $prog
-+	rm -f /var/lock/subsys/sanlock
- }
+ 	fi
++	killproc -p $lockfile $prog
  
- wait_for_stop() {
-@@ -60,53 +57,45 @@
+-	echo -n $"Waiting for $prog to stop:"
++	show "Waiting for %s to stop" "$prog"
++	busy
+ 	timeout=10
+ 	while [ -e $lockfile ]; do
+ 		sleep 1
+ 		timeout=$((timeout - 1))
+ 		if [ "$timeout" -le 0 ]; then
+-			failure; echo
++			fail
+ 			return 1
+ 		fi
  	done
+-
+-	success; echo
+-	return $retval
++	ok
++	rm -f /var/lock/subsys/sanlock
++	return 0
  }
  
 -restart() {
@@ -52,15 +70,15 @@
 +		RETVAL=$1
 +		return
 +	fi
- 	stop
- 	wait_for_stop
- 	start
- }
- 
--reload() {
--	restart
+ 	stop && start
+-	retval=$?
+-	return $retval
 -}
 -
+-reload() {
+-	restart
+ }
+ 
 -rh_status() {
 -	status $prog
 -}
@@ -68,9 +86,7 @@
 -rh_status_q() {
 -	rh_status >/dev/null 2>&1
 +restart() {
-+	stop
-+	wait_for_stop
-+	start
++	stop && start
  }
  
  case "$1" in
