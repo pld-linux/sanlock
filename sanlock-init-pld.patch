@@ -1,52 +1,54 @@
---- sanlock-2.3/init.d/sanlock.orig	2012-05-30 16:05:18.000000000 +0200
-+++ sanlock-2.3/init.d/sanlock	2012-06-03 10:45:15.044632280 +0200
-@@ -31,93 +31,76 @@
+--- sanlock-2.4/init.d/sanlock.orig	2012-07-23 16:24:38.000000000 +0200
++++ sanlock-2.4/init.d/sanlock	2012-09-02 21:09:14.181273151 +0200
+@@ -32,94 +32,85 @@ SANLOCKOPTS="-U $SANLOCKUSER -G $SANLOCK
  [ -f /etc/sysconfig/$prog ] && . /etc/sysconfig/$prog
  
  start() {
 -	[ -x $exec ] || exit 5
 -
 -	if [ ! -d /var/run/$prog ]; then
--		install -d -m 775 /var/run/$prog
+-		install -d -o $SANLOCKUSER -g $SANLOCKUSER -m 775 /var/run/$prog
 -		[ -x /sbin/restorecon ] && restorecon /var/run/$prog
 +	# Check if the service is already running?
 +	if [ -f /var/lock/subsys/sanlock ]; then
 +		msg_already_running "sanlock"
 +		return
  	fi
--
+ 
 -	echo -n $"Starting $prog: "
--	daemon $prog daemon $SANLOCKOPTS
++	msg_starting "sanlock"
+ 	daemon $prog daemon $SANLOCKOPTS
 -	retval=$?
 -	echo
--
+-	[ $retval -eq 0 ] && touch $lockfile
 -	return $retval
-+	msg_starting "sanlock"
-+	daemon --user=$SANLOCKUSER $prog daemon $SANLOCKOPTS
 +	RETVAL=$?
-+	[ $RETVAL -eq 0 ] && touch /var/lock/subsys/sanlock
++	[ $RETVAL -eq 0 ] && touch $lockfile
 +	return $RETVAL
  }
  
  stop() {
 -	echo -n $"Sending stop signal $prog: "
--	killproc -p $lockfile $prog -TERM
--	retval=$?
--	echo
--
--	if [ $retval -ne 0 ]; then
--		return $retval
 +	if [ ! -f /var/lock/subsys/sanlock ]; then
 +		msg_not_running "sanlock"
 +		return
++	fi
+ 	killproc -p $runfile $prog -TERM
+-	retval=$?
+-	echo
++	RETVAL=$?
+ 
+-	if [ $retval -ne 0 ]; then
+-		return $retval
++	if [ $RETVAL -ne 0 ]; then
++		return $RETVAL
  	fi
-+	killproc -p $lockfile $prog
  
 -	echo -n $"Waiting for $prog to stop:"
 +	show "Waiting for %s to stop" "$prog"
 +	busy
  	timeout=10
- 	while [ -e $lockfile ]; do
+ 	while [ -e $runfile ]; do
  		sleep 1
  		timeout=$((timeout - 1))
  		if [ "$timeout" -le 0 ]; then
@@ -55,12 +57,12 @@
  			return 1
  		fi
  	done
--
+ 
 -	success; echo
--	return $retval
 +	ok
-+	rm -f /var/lock/subsys/sanlock
-+	return 0
+ 	rm -f $lockfile
+-	return $retval
++	return $RETVAL
  }
  
 -restart() {
@@ -77,12 +79,14 @@
 -
 -reload() {
 -	restart
- }
- 
--rh_status() {
--	status $prog
 -}
 -
+-rh_status() {
+-	status $prog
++	RETVAL=$?
++	return $RETVAL
+ }
+ 
 -rh_status_q() {
 -	rh_status >/dev/null 2>&1
 +restart() {
@@ -120,7 +124,7 @@
 -	condrestart|try-restart)
 -		rh_status_q || exit 0
 -		restart
-+		status --pidfile $pidfile sanlock
++		status --pidfile $runfile sanlock
 +		RETVAL=$?
  		;;
  	*)
@@ -132,8 +136,8 @@
 -exit $?
 -
 +exit $RETVAL
---- sanlock-2.0/init.d/wdmd.orig	2012-03-02 22:13:24.000000000 +0100
-+++ sanlock-2.0/init.d/wdmd	2012-03-07 18:26:30.102195201 +0100
+--- sanlock-2.4/init.d/wdmd.orig	2012-07-23 16:24:38.000000000 +0200
++++ sanlock-2.4/init.d/wdmd	2012-09-02 21:14:08.491267019 +0200
 @@ -3,7 +3,7 @@
  # wdmd - watchdog multiplexing daemon
  #
@@ -143,16 +147,7 @@
  #
  
  
-@@ -22,7 +22,7 @@
- . /etc/rc.d/init.d/functions
- 
- prog="wdmd"
--lockfile="/var/run/$prog/$prog.pid"
-+pidfile="/var/run/$prog/$prog.pid"
- exec="/usr/sbin/$prog"
- 
- WDMDGROUP="sanlock"
-@@ -31,75 +31,58 @@
+@@ -32,83 +32,69 @@ WDMDOPTS="-G $WDMDGROUP"
  [ -f /etc/sysconfig/$prog ] && . /etc/sysconfig/$prog
  
  start() {
@@ -161,12 +156,22 @@
 -	if [ ! -d /var/run/$prog ]; then
 -		mkdir -p /var/run/$prog
 -		[ -x /sbin/restorecon ] && restorecon /var/run/$prog
+-	fi
 +	# Check if the service is already running?
 +	if [ -f /var/lock/subsys/wdmd ]; then
 +		msg_already_running "wdmd"
 +		return
++ 	fi
+ 
+ 	if [ ! -c /dev/watchdog ]; then
+-		echo -n $"Loading the softdog kernel module: "
++		show "Loading the softdog kernel module: "
+ 		modprobe softdog && udevadm settle
+-		[ -c /dev/watchdog ] && success || failure
+-		echo
++		[ -c /dev/watchdog ] && ok || fail
  	fi
--
+ 
 -	echo -n $"Starting $prog: "
 +	msg_starting "wdmd"
  	daemon $prog $WDMDOPTS
@@ -175,21 +180,25 @@
 -	[ $retval -eq 0 ] && touch $lockfile
 -	return $retval
 +	RETVAL=$?
-+	[ $RETVAL -eq 0 ] && touch /var/lock/subsys/wdmd
++	[ $RETVAL -eq 0 ] && touch $lockfile
++	return $RETVAL
  }
  
  stop() {
 -	echo -n $"Stopping $prog: "
--	killproc -p $lockfile $prog -TERM
+-	killproc -p $runfile $prog -TERM
 -	retval=$?
 -	echo
 -	[ $retval -eq 0 ] && rm -f $lockfile
+-	return $retval
 +	if [ ! -f /var/lock/subsys/wdmd ]; then
 +		msg_not_running "wdmd"
 +		return
 +	fi
-+	killproc --pidfile $pidfile $prog
-+	rm -f /var/lock/subsys/wdmd
++	killproc -p $runfile $prog
++	RETVAL=$?
++	[ $RETVAL -eq 0 ] && rm -f $lockfile
++	return $RETVAL
  }
  
 -restart() {
@@ -202,7 +211,7 @@
  	stop
  	start
  }
- 
+-
 -reload() {
 -	restart
 -}
@@ -215,6 +224,7 @@
 -	rh_status >/dev/null 2>&1
 -}
 -
++ 
  case "$1" in
  	start)
 -		rh_status_q && exit 0
@@ -247,7 +257,7 @@
 -	condrestart|try-restart)
 -		rh_status_q || exit 0
 -		restart
-+		status --pidfile $pidfile wdmd
++		status --pidfile $runfile wdmd
  		;;
  	*)
 -		echo $"Usage $0 {start|stop|status|restart|condrestart|try-restart|reload|force-reload}"
@@ -256,5 +266,5 @@
 +		exit 3
  esac
 -exit $?
--
 +exit $RETVAL
+ 

@@ -2,12 +2,12 @@
 Summary:	Shared storage lock manager
 Summary(pl.UTF-8):	Zarządca blokad dla współdzielonego składowania danych
 Name:		sanlock
-Version:	2.3
+Version:	2.4
 Release:	1
 License:	LGPL v2+ (libsanlock_client, libwdmd), GPL v2 (libsanlock, utilities)
 Group:		Networking
 Source0:	https://fedorahosted.org/releases/s/a/sanlock/%{name}-%{version}.tar.gz
-# Source0-md5:	17ddc7c7b9dfab30e82890b6d14cda57
+# Source0-md5:	5d056f13f1bec99c858867910b557380
 Patch0:		%{name}-link.patch
 Patch1:		%{name}-init-pld.patch
 URL:		https://fedorahosted.org/sanlock/
@@ -113,7 +113,7 @@ install init.d/wdmd $RPM_BUILD_ROOT/etc/rc.d/init.d
 
 install -d $RPM_BUILD_ROOT/usr/lib/tmpfiles.d
 cat >$RPM_BUILD_ROOT/usr/lib/tmpfiles.d/sanlock.conf <<EOF
-d /var/run/sanlock 0775 root root -
+d /var/run/sanlock 0775 sanlock sanlock -
 d /var/run/wdmd 0755 root root -
 EOF
 
