@@ -1,13 +1,14 @@
-# TODO: systemd support (there are init.d/*.service, but they refer to unknown /lib/systemd/systemd-sanlock)
 Summary:	Shared storage lock manager
 Summary(pl.UTF-8):	Zarządca blokad dla współdzielonego składowania danych
 Name:		sanlock
-Version:	2.6
-Release:	3
+Version:	3.2.4
+Release:	1
 License:	LGPL v2+ (libsanlock_client, libwdmd), GPL v2 (libsanlock, utilities)
 Group:		Networking
-Source0:	https://fedorahosted.org/releases/s/a/sanlock/%{name}-%{version}.tar.gz
-# Source0-md5:	c488b1914e0996246e3572a359093d7d
+# older releases: https://fedorahosted.org/releases/s/a/sanlock/%{name}-%{version}.tar.gz
+#Source0Download: https://git.fedorahosted.org/cgit/sanlock.git/
+Source0:	https://git.fedorahosted.org/cgit/sanlock.git/snapshot/%{name}-%{version}.tar.xz
+# Source0-md5:	567ab7aa5863ab56770c6f12ca4e41a3
 Patch0:		%{name}-link.patch
 Patch1:		%{name}-init-pld.patch
 URL:		https://fedorahosted.org/sanlock/
@@ -17,6 +18,8 @@ BuildRequires:	libblkid-devel
 BuildRequires:	libuuid-devel
 BuildRequires:	python-devel
 BuildRequires:	rpmbuild(macros) >= 1.228
+BuildRequires:	tar >= 1:1.22
+BuildRequires:	xz
 Requires(post,preun):	/sbin/chkconfig
 Requires(postun):	/usr/sbin/groupdel
 Requires(postun):	/usr/sbin/userdel
@@ -34,6 +37,39 @@ Shared storage lock manager.
 
 %description -l pl.UTF-8
 Zarządca blokad dla współdzielonego składowania danych.
+
+%package reset
+Summary:	Host reset daemon and client using sanlock
+Summary(pl.UTF-8):	Demon resetujący hosta oraz klient wykorzystujący sanlocka
+Group:		Daemons
+Requires(post,preun):	/sbin/chkconfig
+Requires:	%{name} = %{version}-%{release}
+
+%description reset
+This package contains the reset daemon and client. A cooperating host
+running the daemon can be reset by a host running the client, so long
+as both maintain access to a common sanlock lockspace.
+
+%description reset -l pl.UTF-8
+Ten pakiet zawiera demona oraz klienta resetującego. Współpracujący
+host z działającym demonem może być zresetowany przez host z
+działającym klientem tak długo, jak oba mają dostęp do wspólnej
+przestrzeni blokad sanlock.
+
+%package -n fence-sanlock
+Summary:	Fence agent using sanlock and wdmd
+Summary(pl.UTF-8):	Agent barier wykorzystujący sanlocka oraz wdmd
+Group:		Daemons
+Requires(post,preun):	/sbin/chkconfig
+Requires:	%{name} = %{version}-%{release}
+
+%description -n fence-sanlock
+This package contains the fence agent and daemon for using sanlock and
+wdmd as a cluster fence agent.
+
+%description -n fence-sanlock -l pl.UTF-8
+Ten pakiet zawiera agenta oraz demona barier do użytku z sanlockiem
+oraz wdmd jako agent barier w klastrze.
 
 %package libs
 Summary:	Sanlock libraries
@@ -89,6 +125,17 @@ LIB_ENTIRE_LDFLAGS="%{rpmldflags}" \
 %{__make} -C src \
 	CC="%{__cc}"
 
+CFLAGS= \
+%{__make} -C fence_sanlock \
+	CC="%{__cc}" \
+	OPTIMIZE_FLAG="%{rpmcflags}"
+
+CFLAGS= \
+%{__make} -C reset \
+	CC="%{__cc}" \
+	LDFLAGS="%{rpmldflags}" \
+	OPTIMIZE_FLAG="%{rpmcflags}"
+
 %{__make} -C python
 
 %install
@@ -102,19 +149,36 @@ rm -rf $RPM_BUILD_ROOT
 	DESTDIR=$RPM_BUILD_ROOT \
 	LIBDIR=%{_libdir}
 
+%{__make} -C fence_sanlock install \
+	DESTDIR=$RPM_BUILD_ROOT \
+	LIBDIR=%{_libdir}
+
+%{__make} -C reset install \
+	DESTDIR=$RPM_BUILD_ROOT
+
 %{__make} -C python install \
 	DESTDIR=$RPM_BUILD_ROOT
 
 /sbin/ldconfig -n $RPM_BUILD_ROOT%{_libdir}
 
-install -d $RPM_BUILD_ROOT{/etc/rc.d/init.d,/var/run/{sanlock,wdmd}}
+install -d $RPM_BUILD_ROOT{%{systemdunitdir},/etc/rc.d/init.d}
+install init.d/fence_sanlockd $RPM_BUILD_ROOT/etc/rc.d/init.d
 install init.d/sanlock $RPM_BUILD_ROOT/etc/rc.d/init.d
 install init.d/wdmd $RPM_BUILD_ROOT/etc/rc.d/init.d
+for serv in sanlock wdmd fence_sanlockd ; do
+	sed -e "s,/lib/systemd/systemd-${serv},/etc/rc.d/init.d/${serv}," init.d/${serv}.service >$RPM_BUILD_ROOT%{systemdunitdir}/${serv}.service
+done
+cp -p init.d/sanlk-resetd.service $RPM_BUILD_ROOT%{systemdunitdir}
 
-install -d $RPM_BUILD_ROOT/usr/lib/tmpfiles.d
-cat >$RPM_BUILD_ROOT/usr/lib/tmpfiles.d/sanlock.conf <<EOF
+install -d $RPM_BUILD_ROOT/var/run/{sanlock,wdmd,fence_sanlock,fence_sanlockd}
+install -d $RPM_BUILD_ROOT%{systemdtmpfilesdir}
+cat >$RPM_BUILD_ROOT%{systemdtmpfilesdir}/sanlock.conf <<EOF
 d /var/run/sanlock 0775 sanlock sanlock -
-d /var/run/wdmd 0755 root root -
+d /var/run/wdmd 0775 root sanlock -
+EOF
+cat >$RPM_BUILD_ROOT%{systemdtmpfilesdir}/fence_sanlock.conf <<EOF
+d /var/run/fence_sanlock 0755 root root -
+d /var/run/fence_sanlockd 0755 root root -
 EOF
 
 %clean
@@ -144,6 +208,19 @@ if [ "$1" = "0" ]; then
 	%groupremove sanlock
 fi
 
+%post -n fence-sanlock
+/sbin/chkconfig --add fence_sanlock
+%service fence_sanlock restart
+if [ "$1" = "1" ]; then
+	ccs_update_schema >/dev/null 2>&1 || :
+fi
+
+%preun -n fence-sanlock
+if [ "$1" = "0" ]; then
+	%service -q fence_sanlock stop
+	/sbin/chkconfig --del fence_sanlock
+fi
+
 %post	libs -p /sbin/ldconfig
 %postun	libs -p /sbin/ldconfig
 
@@ -154,11 +231,33 @@ fi
 %attr(755,root,root) %{_sbindir}/wdmd
 %attr(754,root,root) /etc/rc.d/init.d/sanlock
 %attr(754,root,root) /etc/rc.d/init.d/wdmd
-/usr/lib/tmpfiles.d/sanlock.conf
+%{systemdunitdir}/sanlock.service
+%{systemdunitdir}/wdmd.service
+%{systemdtmpfilesdir}/sanlock.conf
 %attr(775,sanlock,sanlock) %dir /var/run/sanlock
-%dir /var/run/wdmd
+%attr(775,root,sanlock) %dir /var/run/wdmd
 %{_mandir}/man8/sanlock.8*
 %{_mandir}/man8/wdmd.8*
+
+%files reset
+%defattr(644,root,root,755)
+%attr(755,root,root) %{_sbindir}/sanlk-reset
+%attr(755,root,root) %{_sbindir}/sanlk-resetd
+%{systemdunitdir}/sanlk-resetd.service
+%{_mandir}/man8/sanlk-reset.8*
+%{_mandir}/man8/sanlk-resetd.8*
+
+%files -n fence-sanlock
+%defattr(644,root,root,755)
+%attr(755,root,root) %{_sbindir}/fence_sanlock
+%attr(755,root,root) %{_sbindir}/fence_sanlockd
+%attr(754,root,root) /etc/rc.d/init.d/fence_sanlockd
+%{systemdunitdir}/fence_sanlockd.service
+%{systemdtmpfilesdir}/fence_sanlock.conf
+%dir /var/run/fence_sanlock
+%dir /var/run/fence_sanlockd
+%{_mandir}/man8/fence_sanlock.8*
+%{_mandir}/man8/fence_sanlockd.8*
 
 %files libs
 %defattr(644,root,root,755)
@@ -176,8 +275,10 @@ fi
 %attr(755,root,root) %{_libdir}/libwdmd.so
 %{_includedir}/sanlock*.h
 %{_includedir}/wdmd.h
+%{_pkgconfigdir}/libsanlock.pc
+%{_pkgconfigdir}/libsanlock_client.pc
 
 %files -n python-sanlock
 %defattr(644,root,root,755)
 %attr(755,root,root) %{py_sitedir}/sanlock.so
-%{py_sitedir}/Sanlock-1.0-py*.egg-info
+%{py_sitedir}/sanlock_python-%{version}_-py*.egg-info
