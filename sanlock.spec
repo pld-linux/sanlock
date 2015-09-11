@@ -87,6 +87,10 @@ Summary:	Header files for sanlock libraries
 Summary(pl.UTF-8):	Pliki nagłówkowe bibliotek sanlock
 Group:		Development/Libraries
 Requires:	%{name}-libs = %{version}-%{release}
+# for libsanlock
+Requires:	libaio-devel
+Requires:	libblkid-devel
+Requires:	libuuid-devel
 
 %description devel
 Header files for sanlock libraries.
