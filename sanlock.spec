@@ -181,6 +181,9 @@ d /var/run/fence_sanlock 0755 root root -
 d /var/run/fence_sanlockd 0755 root root -
 EOF
 
+# fix hardcoded libdir=${prefix}/lib64
+%{__sed} -i -e 's,^libdir=.*,libdir=%{_libdir},' $RPM_BUILD_ROOT%{_pkgconfigdir}/*.pc
+
 %clean
 rm -rf $RPM_BUILD_ROOT
 
