@@ -1,14 +1,14 @@
 Summary:	Shared storage lock manager
 Summary(pl.UTF-8):	Zarządca blokad dla współdzielonego składowania danych
 Name:		sanlock
-Version:	3.2.4
-Release:	2
+Version:	3.3.0
+Release:	1
 License:	LGPL v2+ (libsanlock_client, libwdmd), GPL v2 (libsanlock, utilities)
 Group:		Networking
 # older releases: https://fedorahosted.org/releases/s/a/sanlock/%{name}-%{version}.tar.gz
 #Source0Download: https://git.fedorahosted.org/cgit/sanlock.git/
 Source0:	https://git.fedorahosted.org/cgit/sanlock.git/snapshot/%{name}-%{version}.tar.xz
-# Source0-md5:	567ab7aa5863ab56770c6f12ca4e41a3
+# Source0-md5:	f28d7ec71f5f063414099d804e00e423
 Patch0:		%{name}-link.patch
 Patch1:		%{name}-init-pld.patch
 URL:		https://fedorahosted.org/sanlock/
@@ -140,7 +140,10 @@ CFLAGS= \
 	LDFLAGS="%{rpmldflags}" \
 	OPTIMIZE_FLAG="%{rpmcflags}"
 
-%{__make} -C python
+# note (as of 3.3.0): python3 is not supported
+cd python
+%py_build
+cd ..
 
 %install
 rm -rf $RPM_BUILD_ROOT
@@ -160,8 +163,9 @@ rm -rf $RPM_BUILD_ROOT
 %{__make} -C reset install \
 	DESTDIR=$RPM_BUILD_ROOT
 
-%{__make} -C python install \
-	DESTDIR=$RPM_BUILD_ROOT
+cd python
+%py_install
+cd ..
 
 /sbin/ldconfig -n $RPM_BUILD_ROOT%{_libdir}
 
