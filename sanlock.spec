@@ -5,13 +5,12 @@ Version:	3.4.0
 Release:	1
 License:	LGPL v2+ (libsanlock_client, libwdmd), GPL v2 (libsanlock, utilities)
 Group:		Networking
-# older releases: https://fedorahosted.org/releases/s/a/sanlock/%{name}-%{version}.tar.gz
 #Source0Download: https://git.fedorahosted.org/cgit/sanlock.git/
 Source0:	https://git.fedorahosted.org/cgit/sanlock.git/snapshot/%{name}-%{version}.tar.xz
 # Source0-md5:	d882beb5f188abff545b64cc3cbe9c79
 Patch0:		%{name}-link.patch
 Patch1:		%{name}-init-pld.patch
-URL:		https://fedorahosted.org/sanlock/
+URL:		https://pagure.io/sanlock
 BuildRequires:	gcc >= 5:3.4
 BuildRequires:	libaio-devel
 BuildRequires:	libblkid-devel
