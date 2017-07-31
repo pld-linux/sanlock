@@ -1,13 +1,12 @@
 Summary:	Shared storage lock manager
 Summary(pl.UTF-8):	Zarządca blokad dla współdzielonego składowania danych
 Name:		sanlock
-Version:	3.4.0
+Version:	3.5.0
 Release:	1
 License:	LGPL v2+ (libsanlock_client, libwdmd), GPL v2 (libsanlock, utilities)
 Group:		Networking
-#Source0Download: https://git.fedorahosted.org/cgit/sanlock.git/
-Source0:	https://git.fedorahosted.org/cgit/sanlock.git/snapshot/%{name}-%{version}.tar.xz
-# Source0-md5:	d882beb5f188abff545b64cc3cbe9c79
+Source0:	http://releases.pagure.org/sanlock/%{name}-%{version}.tar.gz
+# Source0-md5:	e5e8bb6ce10901de07f80d3dceaa6976
 Patch0:		%{name}-link.patch
 Patch1:		%{name}-init-pld.patch
 URL:		https://pagure.io/sanlock
