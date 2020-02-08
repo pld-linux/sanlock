@@ -1,14 +1,14 @@
---- sanlock-2.5/init.d/sanlock.orig	2012-09-30 10:16:54.308331928 +0200
-+++ sanlock-2.5/init.d/sanlock	2012-09-30 10:51:21.691622171 +0200
+--- sanlock-3.8.0/init.d/sanlock.orig	2020-02-08 22:16:26.415493120 +0100
++++ sanlock-3.8.0/init.d/sanlock	2020-02-08 22:25:28.369223771 +0100
 @@ -32,95 +32,86 @@
  [ -f /etc/sysconfig/$prog ] && . /etc/sysconfig/$prog
  
  start() {
 -	[ -x $exec ] || exit 5
 -
--	if [ ! -d /var/run/$prog ]; then
--		install -d -o $SANLOCKUSER -g $SANLOCKUSER -m 775 /var/run/$prog
--		[ -x /sbin/restorecon ] && restorecon /var/run/$prog
+-	if [ ! -d /run/$prog ]; then
+-		install -d -o $SANLOCKUSER -g $SANLOCKUSER -m 775 /run/$prog
+-		[ -x /sbin/restorecon ] && restorecon /run/$prog
 +	# Check if the service is already running?
 +	if [ -f /var/lock/subsys/sanlock ]; then
 +		msg_already_running "sanlock"
@@ -132,9 +132,9 @@
  esac
 -exit $?
 +exit $retval
---- sanlock-3.2.4/init.d/wdmd.orig	2015-09-10 17:23:16.258102320 +0200
-+++ sanlock-3.2.4/init.d/wdmd	2015-09-10 17:31:02.341416003 +0200
-@@ -42,114 +42,105 @@
+--- sanlock-3.8.0/init.d/wdmd.orig	2020-02-08 22:16:26.418826435 +0100
++++ sanlock-3.8.0/init.d/wdmd	2020-02-08 22:32:56.383463337 +0100
+@@ -42,114 +42,103 @@
  	retval=$?
  
  	if [ $retval -ne 0 ]; then
@@ -155,22 +155,22 @@
  }
  
  start() {
+-	watchdog_check
+-
+-	[ -x $exec ] || exit 5
+-
+-	if [ ! -d /run/$prog ]; then
+-		install -d -g $WDMDGROUP -m 775 /run/$prog
+-		[ -x /sbin/restorecon ] && restorecon /run/$prog
 +	# Check if the service is already running?
 +	if [ -f $lockfile ]; then
 +		msg_already_running "wdmd"
 +		return
-+ 	fi
-+ 
- 	watchdog_check
+ 	fi
  
- 	[ -x $exec ] || exit 5
- 
--	if [ ! -d /var/run/$prog ]; then
--		install -d -g $WDMDGROUP -m 775 /var/run/$prog
--		[ -x /sbin/restorecon ] && restorecon /var/run/$prog
--	fi
--
 -	echo -n $"Starting $prog: "
++	watchdog_check
++
 +	msg_starting "wdmd"
  	daemon $prog $WDMDOPTS
  	retval=$?
@@ -283,20 +283,19 @@
  esac
 -exit $?
 +exit $retval
---- sanlock-3.2.4/init.d/fence_sanlockd.orig	2015-06-19 18:26:03.000000000 +0200
-+++ sanlock-3.2.4/init.d/fence_sanlockd	2015-09-10 20:58:46.917559578 +0200
+--- sanlock-3.8.0/init.d/fence_sanlockd.orig	2019-06-12 21:07:38.000000000 +0200
++++ sanlock-3.8.0/init.d/fence_sanlockd	2020-02-08 22:34:27.129638389 +0100
 @@ -33,42 +33,35 @@
  [ -f /etc/sysconfig/$prog ] && . /etc/sysconfig/$prog
  
  start() {
 -	[ -x $exec ] || exit 5
--
 +	# Check if the service is already running?
 +	if [ -f /var/lock/subsys/sanlock ]; then
 +		msg_already_running "sanlock"
 +		return
 + 	fi
-+ 
+ 
  	# start wdmd and sanlock daemons if they aren't running
 +	/etc/rc.d/init.d/wdmd status >/dev/null 2>&1 || /etc/rc.d/init.d/wdmd start
 +	/etc/rc.d/init.d/sanlock status >/dev/null 2>&1 || /etc/rc.d/init.d/sanlock start
@@ -305,17 +304,17 @@
 -
 -	service sanlock status > /dev/null 2>&1 || service sanlock start
 -
--	[ ! -d /var/run/$prog ] && install -d -m 775 /var/run/$prog
+-	[ ! -d /run/$prog ] && install -d -m 775 /run/$prog
 -
--	[ ! -d /var/run/$agent ] && install -d -m 775 /var/run/$agent
--
--	[ -n "$(which restorecon)" ] && \
--		[ -x "$(which restorecon)" ] && \
--		restorecon /var/run/$prog
+-	[ ! -d /run/$agent ] && install -d -m 775 /run/$agent
 -
 -	[ -n "$(which restorecon)" ] && \
 -		[ -x "$(which restorecon)" ] && \
--		restorecon /var/run/$agent
+-		restorecon /run/$prog
+-
+-	[ -n "$(which restorecon)" ] && \
+-		[ -x "$(which restorecon)" ] && \
+-		restorecon /run/$agent
 -
 -	echo -n $"Starting $prog: "
 +	msg_starting "$prog"
