@@ -1,12 +1,12 @@
 Summary:	Shared storage lock manager
 Summary(pl.UTF-8):	Zarządca blokad dla współdzielonego składowania danych
 Name:		sanlock
-Version:	3.8.0
+Version:	3.8.2
 Release:	1
 License:	LGPL v2+ (libsanlock_client, libwdmd), GPL v2 (libsanlock, utilities)
 Group:		Networking
 Source0:	https://releases.pagure.org/sanlock/%{name}-%{version}.tar.gz
-# Source0-md5:	37975c995300f740fa9d42bc9ae94c75
+# Source0-md5:	994d0587f21981d84a4af11a39617c45
 Patch0:		%{name}-init-pld.patch
 URL:		https://pagure.io/sanlock
 BuildRequires:	gcc >= 5:3.4
