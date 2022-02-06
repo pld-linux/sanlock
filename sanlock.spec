@@ -1,3 +1,8 @@
+#
+# Conditional build:
+%bcond_without	python2	# CPython 2.x module
+%bcond_without	python3	# CPython 3.x module
+
 Summary:	Shared storage lock manager
 Summary(pl.UTF-8):	Zarządca blokad dla współdzielonego składowania danych
 Name:		sanlock
@@ -13,7 +18,8 @@ BuildRequires:	gcc >= 5:3.4
 BuildRequires:	libaio-devel
 BuildRequires:	libblkid-devel
 BuildRequires:	libuuid-devel
-BuildRequires:	python-devel
+%{?with_python2:BuildRequires:	python-devel >= 1:2.5}
+%{?with_python3:BuildRequires:	python3-devel >= 1:3.2}
 BuildRequires:	rpmbuild(macros) >= 1.228
 BuildRequires:	tar >= 1:1.22
 BuildRequires:	xz
@@ -96,16 +102,28 @@ Header files for sanlock libraries.
 Pliki nagłówkowe bibliotek sanlock.
 
 %package -n python-sanlock
-Summary:	Python binding for sanlock library
-Summary(pl.UTF-8):	Wiązanie Pythona do biblioteki sanlock
+Summary:	Python 2 binding for sanlock library
+Summary(pl.UTF-8):	Wiązanie Pythona 2 do biblioteki sanlock
 Group:		Libraries/Python
 Requires:	%{name}-libs = %{version}-%{release}
 
 %description -n python-sanlock
-Python binding for sanlock library.
+Python 2 binding for sanlock library.
 
 %description -n python-sanlock -l pl.UTF-8
-Wiązanie Pythona do biblioteki sanlock.
+Wiązanie Pythona 2 do biblioteki sanlock.
+
+%package -n python3-sanlock
+Summary:	Python 3 binding for sanlock library
+Summary(pl.UTF-8):	Wiązanie Pythona 3 do biblioteki sanlock
+Group:		Libraries/Python
+Requires:	%{name}-libs = %{version}-%{release}
+
+%description -n python3-sanlock
+Python 3 binding for sanlock library.
+
+%description -n python3-sanlock -l pl.UTF-8
+Wiązanie Pythona 3 do biblioteki sanlock.
 
 %prep
 %setup -q
@@ -136,9 +154,14 @@ CFLAGS= \
 	LDFLAGS="%{rpmldflags}" \
 	OPTIMIZE_FLAG="%{rpmcflags}"
 
-# note (as of 3.3.0): python3 is not supported
 cd python
+%if %{with python2}
 %py_build
+%endif
+
+%if %{with python3}
+%py3_build
+%endif
 cd ..
 
 %install
@@ -160,7 +183,13 @@ rm -rf $RPM_BUILD_ROOT
 	DESTDIR=$RPM_BUILD_ROOT
 
 cd python
+%if %{with python2}
 %py_install
+%endif
+
+%if %{with python3}
+%py3_install
+%endif
 cd ..
 
 /sbin/ldconfig -n $RPM_BUILD_ROOT%{_libdir}
@@ -285,7 +314,16 @@ fi
 %{_pkgconfigdir}/libsanlock.pc
 %{_pkgconfigdir}/libsanlock_client.pc
 
+%if %{with python2}
 %files -n python-sanlock
 %defattr(644,root,root,755)
 %attr(755,root,root) %{py_sitedir}/sanlock.so
 %{py_sitedir}/sanlock_python-%{version}_-py*.egg-info
+%endif
+
+%if %{with python3}
+%files -n python3-sanlock
+%defattr(644,root,root,755)
+%attr(755,root,root) %{py3_sitedir}/sanlock.cpython-*.so
+%{py3_sitedir}/sanlock_python-%{version}_-py*.egg-info
+%endif
