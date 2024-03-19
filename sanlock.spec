@@ -6,13 +6,14 @@
 Summary:	Shared storage lock manager
 Summary(pl.UTF-8):	Zarządca blokad dla współdzielonego składowania danych
 Name:		sanlock
-Version:	3.9.0
+Version:	3.9.1
 Release:	1
 License:	LGPL v2+ (libsanlock_client, libwdmd), GPL v2 (libsanlock, utilities)
 Group:		Networking
 Source0:	https://releases.pagure.org/sanlock/%{name}-%{version}.tar.gz
-# Source0-md5:	91ef906496b79a06319234fd49dae662
-Patch0:		%{name}-init-pld.patch
+# Source0-md5:	41c94ac99b39f81a962c4fde00ae0dd3
+Patch0:		%{name}-restore-sysv.patch
+Patch1:		%{name}-init-pld.patch
 URL:		https://pagure.io/sanlock
 BuildRequires:	gcc >= 5:3.4
 BuildRequires:	libaio-devel
@@ -134,6 +135,7 @@ Wiązanie Pythona 3 do biblioteki sanlock.
 %prep
 %setup -q
 %patch0 -p1
+%patch1 -p1
 
 %build
 export CFLAGS="%{rpmcflags}"
@@ -202,12 +204,13 @@ cd ..
 
 install -d $RPM_BUILD_ROOT{%{systemdunitdir},/etc/rc.d/init.d}
 install init.d/fence_sanlockd $RPM_BUILD_ROOT/etc/rc.d/init.d
-install init.d/sanlock $RPM_BUILD_ROOT/etc/rc.d/init.d
-install init.d/wdmd $RPM_BUILD_ROOT/etc/rc.d/init.d
-for serv in sanlock wdmd fence_sanlockd ; do
-	sed -e "s,/lib/systemd/systemd-${serv},/etc/rc.d/init.d/${serv}," init.d/${serv}.service >$RPM_BUILD_ROOT%{systemdunitdir}/${serv}.service
-done
+install init.d/sanlock-sysv $RPM_BUILD_ROOT/etc/rc.d/init.d/sanlock
+install init.d/wdmd-sysv $RPM_BUILD_ROOT/etc/rc.d/init.d/wdmd
+sed -e "s,/lib/systemd/systemd-fence_sanlockd,/etc/rc.d/init.d/fence_sanlockd," init.d/fence_sanlockd.service >$RPM_BUILD_ROOT%{systemdunitdir}/fence_sanlockd.service
 cp -p init.d/sanlk-resetd.service $RPM_BUILD_ROOT%{systemdunitdir}
+cp -p init.d/sanlock.service.native $RPM_BUILD_ROOT%{systemdunitdir}/sanlock.service
+cp -p init.d/wdmd.service $RPM_BUILD_ROOT%{systemdunitdir}
+install init.d/systemd-wdmd $RPM_BUILD_ROOT/lib/systemd
 
 install -d $RPM_BUILD_ROOT/var/run/{sanlock,wdmd,fence_sanlock,fence_sanlockd}
 install -d $RPM_BUILD_ROOT%{systemdtmpfilesdir}
@@ -273,6 +276,7 @@ fi
 %attr(755,root,root) %{_sbindir}/wdmd
 %attr(754,root,root) /etc/rc.d/init.d/sanlock
 %attr(754,root,root) /etc/rc.d/init.d/wdmd
+%attr(755,root,root) /lib/systemd/systemd-wdmd
 %{systemdunitdir}/sanlock.service
 %{systemdunitdir}/wdmd.service
 %{systemdtmpfilesdir}/sanlock.conf
