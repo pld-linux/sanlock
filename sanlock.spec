@@ -6,20 +6,26 @@
 Summary:	Shared storage lock manager
 Summary(pl.UTF-8):	Zarządca blokad dla współdzielonego składowania danych
 Name:		sanlock
-Version:	3.8.5
+Version:	3.9.0
 Release:	1
 License:	LGPL v2+ (libsanlock_client, libwdmd), GPL v2 (libsanlock, utilities)
 Group:		Networking
 Source0:	https://releases.pagure.org/sanlock/%{name}-%{version}.tar.gz
-# Source0-md5:	da7b006e586e98b70dae0a5737c86fab
+# Source0-md5:	91ef906496b79a06319234fd49dae662
 Patch0:		%{name}-init-pld.patch
 URL:		https://pagure.io/sanlock
 BuildRequires:	gcc >= 5:3.4
 BuildRequires:	libaio-devel
 BuildRequires:	libblkid-devel
 BuildRequires:	libuuid-devel
-%{?with_python2:BuildRequires:	python-devel >= 1:2.5}
-%{?with_python3:BuildRequires:	python3-devel >= 1:3.2}
+%if %{with python2}
+BuildRequires:	python-devel >= 1:2.5
+BuildRequires:	python-setuptools
+%endif
+%if %{with python3}
+BuildRequires:	python3-devel >= 1:3.2
+BuildRequires:	python3-setuptools
+%endif
 BuildRequires:	rpmbuild(macros) >= 1.228
 BuildRequires:	tar >= 1:1.22
 BuildRequires:	xz
